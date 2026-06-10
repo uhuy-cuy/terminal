@@ -14,6 +14,7 @@ import {
   parseCdInput,
 } from '../utils/pathComplete'
 import { loadCommandHistory, pushCommandHistory } from '../utils/historyStorage'
+import { extractPreviewUrl, renderLinkified } from '../utils/linkify'
 import { formatElapsed, getRunningBarText, isLongRunningCommand, isServerReadyLine, parseWebpackPhase } from '../utils/streamHelpers'
 import CdAutocomplete from './CdAutocomplete'
 import './Terminal.css'
@@ -31,6 +32,7 @@ export default function Terminal() {
   const [busy, setBusy] = useState(false)
   const [clockTick, setClockTick] = useState(0)
   const [followOutput, setFollowOutput] = useState(true)
+  const [previewUrl, setPreviewUrl] = useState(null)
   const [cdOpen, setCdOpen] = useState(false)
   const [cdLoading, setCdLoading] = useState(false)
   const [cdEntries, setCdEntries] = useState([])
@@ -79,9 +81,10 @@ export default function Terminal() {
     })
   }, [])
 
-  const detachToRunning = useCallback((jobId, command, reason = 'ready') => {
+  const detachToRunning = useCallback((jobId, command, reason = 'ready', url = null) => {
     setBusy(false)
     streamLoadingIdRef.current = null
+    if (url) setPreviewUrl(url)
     setLines((prev) =>
       prev.map((line) => {
         if (line.type === 'loading' && line.id === jobId) {
@@ -94,6 +97,7 @@ export default function Terminal() {
             id: jobId,
             text: label,
             command,
+            previewUrl: url,
             startedAt: line.startedAt ?? Date.now(),
             lineCount: line.lineCount ?? 0,
             phase: line.phase ?? null,
@@ -454,10 +458,15 @@ export default function Terminal() {
       let detached = false
       let streamFailed = false
 
-      const tryDetach = (reason) => {
+      let lastPreviewUrl = null
+      setPreviewUrl(null)
+
+      const tryDetach = (reason, url = null) => {
         if (detached) return
         detached = true
-        detachToRunning(loadingId, trimmed, reason)
+        const resolvedUrl = url || lastPreviewUrl
+        if (resolvedUrl) setPreviewUrl(resolvedUrl)
+        detachToRunning(loadingId, trimmed, reason, resolvedUrl)
       }
 
       const isStream = state.realMode && isStreamCommand(trimmed, state.aliases)
@@ -505,11 +514,16 @@ export default function Terminal() {
             if (/EADDRINUSE|address already in use|\[exit code: [1-9]/i.test(text)) {
               streamFailed = true
             }
+            const url = extractPreviewUrl(text)
+            if (url) {
+              lastPreviewUrl = url
+              setPreviewUrl(url)
+            }
             const phase = parseWebpackPhase(text)
             if (phase) updateJobPhase(loadingId, phase)
             appendStreamLine(text, loadingId)
             if (isServerReadyLine(text)) {
-              tryDetach('ready')
+              tryDetach('ready', url)
             }
           },
           onClear: () => {
@@ -758,20 +772,36 @@ export default function Terminal() {
             const elapsed = line.startedAt ? formatElapsed(Date.now() - line.startedAt) : '00:00'
             const elapsedMs = line.startedAt ? Date.now() - line.startedAt : 0
             const statusText = getRunningBarText(elapsedMs, line.command || '', line.phase)
+            const runUrl = line.previewUrl || previewUrl
             return (
               <div key={line.id ?? i} className="line line-running">
                 <span className="running-dot" />
                 <span className="running-text">
                   {statusText}
                   {line.command && <span className="running-cmd"> · {line.command}</span>}
+                  {runUrl && (
+                    <a
+                      href={runUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="term-link term-link--preview"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {' '}
+                      · Buka {runUrl}
+                    </a>
+                  )}
                 </span>
                 <span className="loading-timer">{elapsed}</span>
               </div>
             )
           }
           return (
-            <div key={i} className={`line line-output${line.stream ? ' line-output--stream' : ''}`}>
-              {line.text}
+            <div
+              key={i}
+              className={`line line-output${line.stream ? ' line-output--stream' : ''}${/\[terminal\] ▶ Preview:/.test(line.text) ? ' line-output--preview' : ''}`}
+            >
+              {renderLinkified(line.text)}
             </div>
           )
         })}

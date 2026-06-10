@@ -1,7 +1,17 @@
+import { useEffect, useState } from 'react'
 import { getCurrentThemeState, getTheme, setPromptStyle, THEMES } from '../utils/themes'
 import './ThemeSwitcher.css'
 
 export default function ThemeSwitcher({ onThemeChange, onStyleChange }) {
+  const [open, setOpen] = useState(false)
+  const [, setTick] = useState(0)
+
+  useEffect(() => {
+    const bump = () => setTick((n) => n + 1)
+    window.addEventListener('tw-theme-change', bump)
+    return () => window.removeEventListener('tw-theme-change', bump)
+  }, [])
+
   const { id: activeId, style } = getCurrentThemeState()
   const theme = getTheme(activeId)
   const styles = ['powerline', 'rounded', 'flat']
@@ -17,7 +27,11 @@ export default function ThemeSwitcher({ onThemeChange, onStyleChange }) {
 
   return (
     <div className="theme-switcher">
-      <details className="theme-switcher-details">
+      <details
+        className="theme-switcher-details"
+        open={open}
+        onToggle={(e) => setOpen(e.currentTarget.open)}
+      >
         <summary className="theme-switcher-toggle" title="Ganti tema">
           <span className="theme-preview">
             <span style={{ background: theme.vars['--tw-user-bg'] }} />
@@ -26,47 +40,47 @@ export default function ThemeSwitcher({ onThemeChange, onStyleChange }) {
             <span style={{ background: theme.vars['--tw-shell-bg'] }} />
           </span>
           <span className="theme-switcher-label">{theme.label}</span>
-          <span className="theme-switcher-style">{style}</span>
+          <span className="theme-switcher-chevron" aria-hidden="true" />
         </summary>
         <div className="theme-switcher-panel">
-          <p className="theme-panel-title">Gaya prompt</p>
-          <div className="theme-style-row">
+          <div className="theme-style-tabs" role="tablist" aria-label="Gaya prompt">
             {styles.map((s) => (
               <button
                 key={s}
                 type="button"
-                className={`theme-style-btn${s === style ? ' theme-style-btn--active' : ''}`}
+                role="tab"
+                aria-selected={s === style}
+                className={`theme-style-tab${s === style ? ' theme-style-tab--active' : ''}`}
                 onClick={() => handleStyle(s)}
               >
                 {s}
               </button>
             ))}
           </div>
-          <p className="theme-panel-title">Pilih tema</p>
-          <div className="theme-grid">
+          <ul className="theme-list">
             {Object.values(THEMES).map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={`theme-card${t.id === activeId ? ' theme-card--active' : ''}`}
-                onClick={() => handleSelect(t.id)}
-                title={t.desc}
-              >
-                <span className="theme-card-preview">
-                  <i style={{ background: t.vars['--tw-user-bg'] }} />
-                  <i style={{ background: t.vars['--tw-path-bg'] }} />
-                  <i style={{ background: t.vars['--tw-git-bg'] }} />
-                  <i style={{ background: t.vars['--tw-shell-bg'] }} />
-                </span>
-                <span className="theme-card-name">{t.label}</span>
-                <span className="theme-card-id">{t.id}</span>
-              </button>
+              <li key={t.id}>
+                <button
+                  type="button"
+                  className={`theme-row${t.id === activeId ? ' theme-row--active' : ''}`}
+                  onClick={() => handleSelect(t.id)}
+                  title={t.desc}
+                >
+                  <span className="theme-row-swatch">
+                    <span style={{ background: t.vars['--tw-user-bg'] }} />
+                    <span style={{ background: t.vars['--tw-path-bg'] }} />
+                    <span style={{ background: t.vars['--tw-git-bg'] }} />
+                    <span style={{ background: t.vars['--tw-shell-bg'] }} />
+                  </span>
+                  <span className="theme-row-text">
+                    <span className="theme-row-name">{t.label}</span>
+                    <span className="theme-row-id">{t.id}</span>
+                  </span>
+                  {t.id === activeId && <span className="theme-row-check">✓</span>}
+                </button>
+              </li>
             ))}
-          </div>
-          <p className="theme-panel-hint">
-            CLI: <code>theme set dracula</code> · <code>theme style rounded</code> ·{' '}
-            <code>theme custom --user=#hex</code>
-          </p>
+          </ul>
         </div>
       </details>
     </div>

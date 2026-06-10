@@ -68,6 +68,26 @@
   animation: stream-in 0.12s ease-out;
 }
 
+.line-output--preview {
+  color: var(--tw-git-bg, #2ecc71);
+  font-weight: 600;
+}
+
+.term-link {
+  color: var(--tw-path-bg, #00b4d8);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.term-link:hover {
+  color: #5dd4f0;
+}
+
+.term-link--preview {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .line-loading {
   display: flex;
   align-items: center;

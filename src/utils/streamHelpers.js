@@ -18,7 +18,7 @@ export function isLongRunningCommand(cmd) {
 }
 
 export function isServerReadyLine(text) {
-  return /listening on|compiled successfully|webpack compiled|Angular Live Development Server|bundle generation complete|Initial Chunk Files|Lazy Chunk Files|Local:\s*http/i.test(
+  return /\[terminal\] ▶ Preview:|listening on|compiled successfully|webpack compiled|Angular Live Development Server|bundle generation complete|Initial Chunk Files|Lazy Chunk Files|Local:\s*http|ready in \d/i.test(
     text,
   )
 }

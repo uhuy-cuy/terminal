@@ -11,6 +11,8 @@ class ShellHandler
     private array $allowedShell;
     /** @var string[] */
     private array $blockedShell;
+    private ?int $streamAssignedPort = null;
+    private ?string $emittedPreviewUrl = null;
 
     public function __construct(array $config)
     {
@@ -640,6 +642,11 @@ class ShellHandler
     private function enhanceStreamCommand(string $command): string
     {
         $trimmed = trim($command);
+        $this->streamAssignedPort = null;
+
+        if (preg_match('/--port[=\s]+(\d+)/i', $trimmed, $portMatch)) {
+            $this->streamAssignedPort = (int) $portMatch[1];
+        }
 
         if (preg_match('/^git\s+(pull|fetch|clone|push)(\s|$)/i', $trimmed) && !preg_match('/--progress/i', $trimmed)) {
             return $trimmed . ' --progress';
@@ -647,11 +654,20 @@ class ShellHandler
 
         if (preg_match('/^npm\s+(run\s+)?start(\s|$)/i', $trimmed) && !preg_match('/--port\b/i', $trimmed)) {
             $port = $this->pickAvailablePort(4201);
+            $this->streamAssignedPort = $port;
             return $trimmed . ' -- --port ' . $port . ' --verbose';
         }
 
+        if (preg_match('/^npm\s+run\s+dev(\s|$)/i', $trimmed) && !preg_match('/--port\b/i', $trimmed)) {
+            $port = $this->pickAvailablePort(5173);
+            $this->streamAssignedPort = $port;
+            return $trimmed . ' -- --port ' . $port;
+        }
+
         if (preg_match('/^(npx\s+)?ng\s+serve(\s|$)/i', $trimmed) && !preg_match('/--port\b/i', $trimmed)) {
-            return $trimmed . ' --port ' . $this->pickAvailablePort(4201) . ' --verbose';
+            $port = $this->pickAvailablePort(4201);
+            $this->streamAssignedPort = $port;
+            return $trimmed . ' --port ' . $port . ' --verbose';
         }
 
         return $trimmed;
@@ -702,6 +718,40 @@ class ShellHandler
         ]);
     }
 
+    private function maybeEmitPreviewUrl(string $line, callable $emit): void
+    {
+        if (preg_match('/https?:\/\/[^\s\]\)<>"]+/i', $line, $match)) {
+            $this->emitPreviewOnce(rtrim($match[0], '.,)]'), $emit);
+            return;
+        }
+
+        if (preg_match('/listening on (?:localhost:|127\.0\.0\.1:)?(\d+)/i', $line, $match)) {
+            $this->emitPreviewOnce('http://localhost:' . $match[1] . '/', $emit);
+            return;
+        }
+
+        if ($this->streamAssignedPort === null) {
+            return;
+        }
+
+        if (!preg_match('/Local:|compiled successfully|Angular Live Development Server|ready in \d/i', $line)) {
+            return;
+        }
+
+        $this->emitPreviewOnce('http://localhost:' . $this->streamAssignedPort . '/', $emit);
+    }
+
+    private function emitPreviewOnce(string $url, callable $emit): void
+    {
+        if ($this->emittedPreviewUrl === $url) {
+            return;
+        }
+
+        $this->emittedPreviewUrl = $url;
+        $emit(['type' => 'line', 'text' => '']);
+        $emit(['type' => 'line', 'text' => '[terminal] ▶ Preview: ' . $url]);
+    }
+
     /** @return array<string, string> */
     private function buildProcessEnv(): array
     {
@@ -738,6 +788,7 @@ class ShellHandler
         $env['npm_config_progress'] = 'true';
         $env['NODE_NO_READLINE'] = '1';
         $env['WEBPACK_PROGRESS'] = 'true';
+        $env['CI'] = '1';
 
         return $env;
     }
@@ -914,24 +965,17 @@ class ShellHandler
 
         while ($buffer !== '') {
             $posN = strpos($buffer, "\n");
-            $posR = strpos($buffer, "\r");
-
-            if ($posN === false && $posR === false) {
+            if ($posN === false) {
                 break;
             }
 
-            if ($posN === false) {
-                $pos = $posR;
-            } elseif ($posR === false) {
-                $pos = $posN;
-            } else {
-                $pos = min($posN, $posR);
-            }
+            $raw = substr($buffer, 0, $posN);
+            $buffer = substr($buffer, $posN + 1);
 
-            $raw = substr($buffer, 0, $pos);
-            $buffer = substr($buffer, $pos + 1);
-            if ($buffer !== '' && $buffer[0] === "\n") {
-                $buffer = substr($buffer, 1);
+            // \r = overwrite baris (spinner webpack/Vite) — ambil teks setelah \r terakhir
+            $posR = strrpos($raw, "\r");
+            if ($posR !== false) {
+                $raw = substr($raw, $posR + 1);
             }
 
             $text = $this->sanitizeStreamLine($raw);
@@ -1011,6 +1055,7 @@ class ShellHandler
         }
 
         $emit(['type' => 'status', 'text' => '▶ Menjalankan...']);
+        $this->emittedPreviewUrl = null;
 
         $logFile = tempnam(sys_get_temp_dir(), 'tws_');
         if ($logFile === false) {
@@ -1051,6 +1096,7 @@ class ShellHandler
                 $this->maybeAutoReplyStdin($pipes[0], $line, $emit, $stdinReplied);
                 $this->maybeEmitPortHint($line, $emit);
                 $this->maybeEmitGitCredentialHint($line, $emit);
+                $this->maybeEmitPreviewUrl($line, $emit);
             });
         };
 
