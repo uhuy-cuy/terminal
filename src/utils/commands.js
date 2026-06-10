@@ -329,12 +329,13 @@ function runSingleCommand(input, state) {
           '  Git / push ke GitHub:',
           '    git config --global user.name "Nama Anda"',
           '    git config --global user.email "email@github.com"',
-          '    git config --global credential.helper manager',
+          '    git config --global credential.helper manager-core',
           '    git remote -v                  — cek remote origin',
           '    git add .',
           '    git commit -m "pesan commit"',
           '    git push -u origin main        — push branch main',
-          '    git push -u origin <branch>    — push branch lain',
+          '    Catatan Laragon: login pertama kali lebih aman dari PowerShell/CMD',
+          '    (popup Windows), setelah itu push dari terminal web bisa pakai token tersimpan.',
           '',
           newState.realMode
             ? '  Mode: REAL — akses penuh Windows (semua drive & path)'

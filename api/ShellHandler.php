@@ -731,6 +731,8 @@ class ShellHandler
             $env['HOMEPATH'] = $m[2] !== '' ? $m[2] : '\\';
         }
 
+        $this->applyGitWindowsEnv($env);
+
         $env['FORCE_COLOR'] = '1';
         $env['npm_config_color'] = 'true';
         $env['npm_config_progress'] = 'true';
@@ -772,6 +774,112 @@ class ShellHandler
         }
 
         return $this->homePath;
+    }
+
+    /** @param array<string, string> $env */
+    private function applyGitWindowsEnv(array &$env): void
+    {
+        if (PHP_OS_FAMILY !== 'Windows') {
+            return;
+        }
+
+        $this->prependGitPaths($env);
+
+        $helper = $this->resolveGitCredentialHelper();
+        if ($helper !== null) {
+            $env['GIT_CONFIG_COUNT'] = '1';
+            $env['GIT_CONFIG_KEY_0'] = 'credential.helper';
+            $env['GIT_CONFIG_VALUE_0'] = $helper;
+        }
+
+        $env['GCM_INTERACTIVE'] = 'always';
+        $env['GCM_ALLOW_AUTHENTICATION_POPUP'] = '1';
+        $env['GIT_TERMINAL_PROMPT'] = '0';
+
+        unset($env['GIT_ASKPASS'], $env['SSH_ASKPASS']);
+    }
+
+    /** @param array<string, string> $env */
+    private function prependGitPaths(array &$env): void
+    {
+        $path = $env['PATH'] ?? $env['Path'] ?? '';
+        $segments = $path !== '' ? explode(';', $path) : [];
+        $existing = array_map('strtolower', array_map('trim', $segments));
+
+        $candidates = [
+            'C:/laragon/bin/git/mingw64/bin',
+            'C:/laragon/bin/git/cmd',
+            'C:/laragon/bin/git/usr/bin',
+            'C:/Program Files/Git/mingw64/bin',
+            'C:/Program Files/Git/cmd',
+        ];
+
+        foreach (array_reverse($candidates) as $dir) {
+            $resolved = realpath(str_replace('/', DIRECTORY_SEPARATOR, $dir));
+            if ($resolved === false || !is_dir($resolved)) {
+                continue;
+            }
+            $normalized = str_replace('\\', '/', $resolved);
+            if (!in_array(strtolower($normalized), $existing, true)) {
+                array_unshift($segments, $normalized);
+                $existing[] = strtolower($normalized);
+            }
+        }
+
+        $merged = implode(';', array_filter($segments, static fn($s) => $s !== ''));
+        $env['PATH'] = $merged;
+        $env['Path'] = $merged;
+    }
+
+    private function resolveGitCredentialHelper(): ?string
+    {
+        $searchDirs = [
+            'C:/laragon/bin/git/mingw64/bin',
+            'C:/Program Files/Git/mingw64/bin',
+        ];
+
+        $path = getenv('PATH') ?: getenv('Path') ?: '';
+        foreach (explode(';', $path) as $segment) {
+            $segment = trim($segment);
+            if ($segment !== '' && is_dir($segment)) {
+                $searchDirs[] = str_replace('\\', '/', $segment);
+            }
+        }
+
+        foreach (array_unique($searchDirs) as $dir) {
+            $resolved = realpath(str_replace('/', DIRECTORY_SEPARATOR, $dir));
+            if ($resolved === false) {
+                continue;
+            }
+            $base = str_replace('\\', '/', $resolved);
+
+            if (is_file($base . '/git-credential-manager.exe')) {
+                return 'manager';
+            }
+            if (is_file($base . '/git-credential-manager-core.exe')) {
+                return 'manager-core';
+            }
+            if (is_file($base . '/git-credential-wincred.exe')) {
+                return 'wincred';
+            }
+        }
+
+        return 'manager-core';
+    }
+
+    private function maybeEmitGitCredentialHint(string $line, callable $emit): void
+    {
+        if (!preg_match(
+            '/credential-manager|could not read Username|\/dev\/tty|failed to execute prompt script/i',
+            $line
+        )) {
+            return;
+        }
+
+        $emit([
+            'type' => 'line',
+            'text' => '[terminal] Login Git gagal di browser — jalankan sekali di PowerShell/CMD: git config --global credential.helper manager-core lalu git push (popup login Windows). Setelah tersimpan, push dari sini akan jalan.',
+        ]);
     }
 
     private function sanitizeStreamLine(string $text): string
@@ -931,6 +1039,7 @@ class ShellHandler
             $this->tailLogIntoEmit($logFile, $logOffset, $logBuffer, $emit, function (string $line) use ($emit, $pipes, &$stdinReplied): void {
                 $this->maybeAutoReplyStdin($pipes[0], $line, $emit, $stdinReplied);
                 $this->maybeEmitPortHint($line, $emit);
+                $this->maybeEmitGitCredentialHint($line, $emit);
             });
         };
 
