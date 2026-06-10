@@ -641,15 +641,6 @@ class ShellHandler
     {
         $trimmed = trim($command);
 
-        if (preg_match('/^git\s+/i', $trimmed) && !preg_match('/-c\s+credential\.helper/i', $trimmed)) {
-            $helper = $this->resolveGitCredentialHelper() ?? 'manager-core';
-            $trimmed = preg_replace(
-                '/^git\s+/i',
-                'git -c credential.helper=' . $helper . ' ',
-                $trimmed,
-            ) ?? $trimmed;
-        }
-
         if (preg_match('/^git\s+(pull|fetch|clone|push)(\s|$)/i', $trimmed) && !preg_match('/--progress/i', $trimmed)) {
             return $trimmed . ' --progress';
         }
@@ -794,12 +785,12 @@ class ShellHandler
 
         $this->prependGitPaths($env);
 
-        $helper = $this->resolveGitCredentialHelper();
-        if ($helper !== null) {
-            $env['GIT_CONFIG_COUNT'] = '1';
-            $env['GIT_CONFIG_KEY_0'] = 'credential.helper';
-            $env['GIT_CONFIG_VALUE_0'] = $helper;
-        }
+        // Lewati gitconfig sistem (helper-selector / manager) — langsung manager-core
+        $env['GIT_CONFIG_NOSYSTEM'] = '1';
+        $helper = $this->gitCredentialHelperDirective();
+        $env['GIT_CONFIG_COUNT'] = '1';
+        $env['GIT_CONFIG_KEY_0'] = 'credential.helper';
+        $env['GIT_CONFIG_VALUE_0'] = $helper;
 
         $env['GCM_INTERACTIVE'] = 'always';
         $env['GCM_ALLOW_AUTHENTICATION_POPUP'] = '1';
@@ -840,7 +831,21 @@ class ShellHandler
         $env['Path'] = $merged;
     }
 
-    private function resolveGitCredentialHelper(): ?string
+    private function gitCredentialHelperDirective(): string
+    {
+        $exe = $this->resolveGitCredentialHelperExe();
+        if ($exe === null) {
+            return 'manager-core';
+        }
+
+        if (str_contains($exe, ' ')) {
+            return '!"' . $exe . '"';
+        }
+
+        return '!' . $exe;
+    }
+
+    private function resolveGitCredentialHelperExe(): ?string
     {
         $searchDirs = [
             'C:/laragon/bin/git/mingw64/bin',
@@ -862,18 +867,15 @@ class ShellHandler
             }
             $base = str_replace('\\', '/', $resolved);
 
-            if (is_file($base . '/git-credential-manager.exe')) {
-                return 'manager';
-            }
-            if (is_file($base . '/git-credential-manager-core.exe')) {
-                return 'manager-core';
-            }
-            if (is_file($base . '/git-credential-wincred.exe')) {
-                return 'wincred';
+            foreach (['git-credential-manager-core.exe', 'git-credential-manager.exe', 'git-credential-wincred.exe'] as $name) {
+                $full = $base . '/' . $name;
+                if (is_file($full)) {
+                    return $full;
+                }
             }
         }
 
-        return 'manager-core';
+        return null;
     }
 
     private function maybeEmitGitCredentialHint(string $line, callable $emit): void
