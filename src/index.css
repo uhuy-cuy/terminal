@@ -1,0 +1,74 @@
+:root {
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+
+  /* tema default @tahirwiyan — di-override oleh themes.js */
+  --tw-user-bg: #0077c2;
+  --tw-user-fg: #ffffff;
+  --tw-path-bg: #00b4d8;
+  --tw-path-fg: #001219;
+  --tw-git-bg: #2ecc71;
+  --tw-git-fg: #0d2818;
+  --tw-shell-bg: #f1c40f;
+  --tw-shell-fg: #1a1500;
+  --term-bg: #0c0c0c;
+  --term-text: #cccccc;
+  --term-cursor: #ffffff;
+  --app-bg: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  --chrome-bg: #2d2d2d;
+  --selection-bg: rgba(0, 180, 216, 0.35);
+
+  /* alias kompatibilitas */
+  --bg: var(--term-bg);
+  --bg-panel: #1e1e1e;
+  --text: var(--term-text);
+  --text-dim: #6a6a6a;
+  --cursor: var(--term-cursor);
+  --seg-blue: var(--tw-user-bg);
+  --seg-blue-text: var(--tw-user-fg);
+  --seg-cyan: var(--tw-path-bg);
+  --seg-cyan-text: var(--tw-path-fg);
+  --seg-green: var(--tw-git-bg);
+  --seg-green-text: var(--tw-git-fg);
+  --seg-yellow: var(--tw-shell-bg);
+  --seg-yellow-text: var(--tw-shell-fg);
+  --seg-purple: #9b59b6;
+  --seg-purple-text: #ffffff;
+  --seg-red: #e74c3c;
+  --seg-orange: #e67e22;
+  --error: #f44747;
+  --success: #6a9955;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--app-bg);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  font-feature-settings: 'calt' 1, 'liga' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+input,
+button,
+textarea,
+select {
+  font-family: inherit;
+}
+
+::selection {
+  background: var(--selection-bg);
+}

@@ -1,0 +1,390 @@
+.terminal {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: var(--bg);
+  border: 1px solid #3c3c3c;
+  border-radius: 0 0 10px 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 20px;
+  cursor: text;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.terminal-body {
+  min-height: 100%;
+}
+
+.scroll-bottom-btn {
+  position: sticky;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: block;
+  margin: 0 auto 8px;
+  padding: 4px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--term-text, #ccc);
+  background: var(--chrome-bg, #2d2d2d);
+  border: 1px solid var(--tw-path-bg, #00b4d8);
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
+.scroll-bottom-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0;
+  line-height: 1.6;
+  font-size: 14px;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.line-prompt {
+  margin-top: 4px;
+}
+
+.line-output {
+  padding-left: 0;
+  color: var(--text);
+}
+
+.line-output--stream {
+  animation: stream-in 0.12s ease-out;
+}
+
+.line-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  color: var(--tw-path-bg);
+  font-size: 13px;
+  margin: 2px 0 4px;
+  animation: pulse-loading 1.6s ease-in-out infinite;
+}
+
+.loading-spinner {
+  width: 10px;
+  height: 10px;
+  border: 2px solid color-mix(in srgb, var(--tw-path-bg) 25%, transparent);
+  border-top-color: var(--tw-path-bg);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.loading-text {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.loading-dots {
+  display: inline-block;
+  margin-left: 1px;
+  animation: loading-dots-pulse 1.2s ease-in-out infinite;
+}
+
+.loading-timer {
+  margin-left: auto;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--tw-shell-bg, #f1c40f);
+  white-space: nowrap;
+}
+
+.line-running {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  color: var(--tw-git-bg, #2ecc71);
+  font-size: 12px;
+  margin: 4px 0;
+  padding: 4px 0;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.running-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tw-git-bg, #2ecc71);
+  flex-shrink: 0;
+  animation: running-pulse 1.4s ease-in-out infinite;
+}
+
+.running-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.running-cmd {
+  opacity: 0.65;
+}
+
+@keyframes running-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes stream-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-loading {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.line-spacer {
+  height: 8px;
+}
+
+.line-active {
+  margin-top: 4px;
+  flex-wrap: nowrap;
+}
+
+/* ── @tahirwiyan prompt segments ── */
+.tw-prompt {
+  display: inline-flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+  margin-right: 4px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+.tw-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 10px;
+  position: relative;
+  white-space: nowrap;
+}
+
+.tw-seg::after {
+  content: '';
+  position: absolute;
+  right: -8px;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-top: 11px solid transparent;
+  border-bottom: 11px solid transparent;
+  z-index: 2;
+}
+
+.tw-seg-user {
+  background: var(--tw-user-bg);
+  color: var(--tw-user-fg);
+  border-radius: 4px 0 0 4px;
+  padding-left: 10px;
+}
+
+.tw-seg-user::after {
+  border-left: 8px solid var(--tw-user-bg);
+}
+
+.tw-seg-path {
+  background: var(--tw-path-bg);
+  color: var(--tw-path-fg);
+  margin-left: 0;
+}
+
+.tw-seg-path::after {
+  border-left: 8px solid var(--tw-path-bg);
+}
+
+.tw-seg-git {
+  background: var(--tw-git-bg);
+  color: var(--tw-git-fg);
+}
+
+.tw-seg-git::after {
+  border-left: 8px solid var(--tw-git-bg);
+}
+
+.tw-seg-shell {
+  background: var(--tw-shell-bg);
+  color: var(--tw-shell-fg);
+  border-radius: 0 4px 4px 0;
+  padding-right: 12px;
+}
+
+.tw-seg-shell::after {
+  display: none;
+}
+
+/* ── gaya prompt: rounded ── */
+[data-prompt-style='rounded'] .tw-prompt {
+  gap: 4px;
+  filter: none;
+}
+
+[data-prompt-style='rounded'] .tw-seg::after {
+  display: none;
+}
+
+[data-prompt-style='rounded'] .tw-seg {
+  border-radius: 6px;
+  padding: 2px 10px;
+}
+
+[data-prompt-style='rounded'] .tw-seg-user,
+[data-prompt-style='rounded'] .tw-seg-shell {
+  border-radius: 6px;
+}
+
+/* ── gaya prompt: flat ── */
+[data-prompt-style='flat'] .tw-prompt {
+  gap: 2px;
+  filter: none;
+}
+
+[data-prompt-style='flat'] .tw-seg::after {
+  display: none;
+}
+
+[data-prompt-style='flat'] .tw-seg {
+  border-radius: 3px;
+  padding: 1px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+[data-prompt-style='flat'] .tw-seg-user,
+[data-prompt-style='flat'] .tw-seg-shell {
+  border-radius: 3px;
+}
+
+.tw-icon {
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.typed-command {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+/* ── input ── */
+.input-area {
+  display: inline-grid;
+  align-items: baseline;
+  vertical-align: baseline;
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: calc(100% - 8px);
+}
+
+.input-area--complete {
+  position: relative;
+}
+
+.input-measure {
+  grid-area: 1 / 1;
+  visibility: hidden;
+  white-space: pre;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+  min-width: 8px;
+}
+
+.terminal-input {
+  grid-area: 1 / 1;
+  width: 100%;
+  min-width: 8px;
+  max-width: calc(100vw - 48px);
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  caret-color: var(--cursor);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+  padding: 0;
+  margin: 0;
+}
+
+.terminal-input:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* scrollbar */
+.terminal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.terminal::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 4px;
+}
+
+.terminal::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* neofetch colors in output */
+.line-output:first-letter {
+  /* preserve monospace alignment */
+}
