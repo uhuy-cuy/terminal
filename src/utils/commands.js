@@ -336,6 +336,10 @@ function runSingleCommand(input, state) {
           '    git push -u origin main        — push branch main',
           '    Catatan Laragon: login pertama kali lebih aman dari PowerShell/CMD',
           '    (popup Windows), setelah itu push dari terminal web bisa pakai token tersimpan.',
+          '    Ganti akun GitHub (masih login akun lama):',
+          '      cmdkey /delete:LegacyGeneric:target=git:https://github.com',
+          '      atau Panel Kontrol → Credential Manager → hapus git:github.com',
+          '      lalu git push lagi → login akun yang benar',
           '',
           newState.realMode
             ? '  Mode: REAL — akses penuh Windows (semua drive & path)'

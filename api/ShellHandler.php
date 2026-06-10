@@ -639,11 +639,20 @@ class ShellHandler
 
     private function enhanceStreamCommand(string $command): string
     {
-        if (preg_match('/^git\s+(pull|fetch|clone|push)(\s|$)/i', $command) && !preg_match('/--progress/i', $command)) {
-            return $command . ' --progress';
+        $trimmed = trim($command);
+
+        if (preg_match('/^git\s+/i', $trimmed) && !preg_match('/-c\s+credential\.helper/i', $trimmed)) {
+            $helper = $this->resolveGitCredentialHelper() ?? 'manager-core';
+            $trimmed = preg_replace(
+                '/^git\s+/i',
+                'git -c credential.helper=' . $helper . ' ',
+                $trimmed,
+            ) ?? $trimmed;
         }
 
-        $trimmed = trim($command);
+        if (preg_match('/^git\s+(pull|fetch|clone|push)(\s|$)/i', $trimmed) && !preg_match('/--progress/i', $trimmed)) {
+            return $trimmed . ' --progress';
+        }
 
         if (preg_match('/^npm\s+(run\s+)?start(\s|$)/i', $trimmed) && !preg_match('/--port\b/i', $trimmed)) {
             $port = $this->pickAvailablePort(4201);
@@ -654,7 +663,7 @@ class ShellHandler
             return $trimmed . ' --port ' . $this->pickAvailablePort(4201) . ' --verbose';
         }
 
-        return $command;
+        return $trimmed;
     }
 
     private function pickAvailablePort(int $start = 4201): int
