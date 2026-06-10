@@ -326,6 +326,16 @@ function runSingleCommand(input, state) {
           '    taskkill /PID <id> /T /F    — matikan satu proses + child-nya',
           '    netstat -ano | findstr :4200 — cek PID yang pakai port 4200',
           '',
+          '  Git / push ke GitHub:',
+          '    git config --global user.name "Nama Anda"',
+          '    git config --global user.email "email@github.com"',
+          '    git config --global credential.helper manager',
+          '    git remote -v                  — cek remote origin',
+          '    git add .',
+          '    git commit -m "pesan commit"',
+          '    git push -u origin main        — push branch main',
+          '    git push -u origin <branch>    — push branch lain',
+          '',
           newState.realMode
             ? '  Mode: REAL — akses penuh Windows (semua drive & path)'
             : '  Mode: SIMULASI — jalankan via Laragon untuk shell asli',

@@ -526,7 +526,7 @@ class ShellHandler
             $descriptors,
             $pipes,
             $cwdReal,
-            null,
+            $this->buildProcessEnv(),
             ['bypass_shell' => true]
         );
 
@@ -562,7 +562,8 @@ class ShellHandler
             'git branch --show-current',
             $descriptors,
             $pipes,
-            str_replace('/', DIRECTORY_SEPARATOR, $cwd)
+            str_replace('/', DIRECTORY_SEPARATOR, $cwd),
+            $this->buildProcessEnv()
         );
         if (!is_resource($proc)) return null;
         fclose($pipes[0]);
@@ -722,6 +723,14 @@ class ShellHandler
             $env['PATH'] = $path;
         }
 
+        $home = $this->resolveUserHome();
+        $env['HOME'] = $home;
+        $env['USERPROFILE'] = $home;
+        if (preg_match('/^([A-Za-z]:)(.*)$/', $home, $m)) {
+            $env['HOMEDRIVE'] = $m[1];
+            $env['HOMEPATH'] = $m[2] !== '' ? $m[2] : '\\';
+        }
+
         $env['FORCE_COLOR'] = '1';
         $env['npm_config_color'] = 'true';
         $env['npm_config_progress'] = 'true';
@@ -729,6 +738,40 @@ class ShellHandler
         $env['WEBPACK_PROGRESS'] = 'true';
 
         return $env;
+    }
+
+    private function resolveUserHome(): string
+    {
+        $candidates = [
+            getenv('USERPROFILE') ?: null,
+            getenv('HOME') ?: null,
+            $_SERVER['USERPROFILE'] ?? null,
+            $_SERVER['HOME'] ?? null,
+        ];
+
+        $drive = getenv('HOMEDRIVE') ?: ($_SERVER['HOMEDRIVE'] ?? '');
+        $homePath = getenv('HOMEPATH') ?: ($_SERVER['HOMEPATH'] ?? '');
+        if (is_string($drive) && $drive !== '' && is_string($homePath) && $homePath !== '') {
+            $candidates[] = $drive . $homePath;
+        }
+
+        $user = getenv('USERNAME') ?: ($_SERVER['USERNAME'] ?? '');
+        if (is_string($user) && $user !== '') {
+            $candidates[] = 'C:/Users/' . $user;
+        }
+
+        foreach ($candidates as $candidate) {
+            if (!is_string($candidate) || $candidate === '') {
+                continue;
+            }
+            $normalized = str_replace('\\', '/', $candidate);
+            $resolved = realpath($normalized);
+            if ($resolved !== false && is_dir($resolved)) {
+                return str_replace('\\', '/', $resolved);
+            }
+        }
+
+        return $this->homePath;
     }
 
     private function sanitizeStreamLine(string $text): string
