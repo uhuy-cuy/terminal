@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import Terminal from './components/Terminal'
+import TerminalTabs from './components/TerminalTabs'
 import InstallPWA from './components/InstallPWA'
 import ThemeSwitcher from './components/ThemeSwitcher'
 import { applyTheme, getTheme, setPromptStyle } from './utils/themes'
@@ -33,7 +33,7 @@ export default function App() {
           onStyleChange={handleStyleChange}
         />
       </div>
-      <Terminal />
+      <TerminalTabs />
       <InstallPWA />
     </div>
   )

@@ -7,6 +7,8 @@ const FS_COMMANDS = new Set([
   'find', 'tree', 'wc', 'grep', 'clear', 'cls',
 ])
 
+const BUILTIN_COMMANDS = new Set(['killport', 'kp'])
+
 function resolveFirstCommand(command, aliases = {}) {
   const trimmed = command.trim()
   const first = trimmed.split(/\s+/)[0]?.toLowerCase()
@@ -139,5 +141,5 @@ export function isRealMode(state) {
 
 export function isStreamCommand(command, aliases = {}) {
   const first = resolveFirstCommand(command, aliases)
-  return first !== '' && !FS_COMMANDS.has(first)
+  return first !== '' && !FS_COMMANDS.has(first) && !BUILTIN_COMMANDS.has(first)
 }

@@ -163,12 +163,119 @@ class ShellHandler
             case 'clear':
             case 'cls':
                 return ['ok' => true, 'output' => [], 'cwd' => $cwd, 'clear' => true, 'gitBranch' => $this->detectGitBranch($cwd)];
+            case 'killport':
+            case 'kp':
+                return $this->cmdKillPort($cwd, $args);
             default:
                 if ($this->isAllowedShell($cmd)) {
                     return $this->runShell($command, $cwd);
                 }
                 return $this->wrap($cwd, ["{$cmd}: command not found. Ketik 'help' untuk bantuan."]);
         }
+    }
+
+    private function cmdKillPort(string $cwd, array $args): array
+    {
+        $raw = trim((string) ($args[0] ?? ''));
+        if ($raw === '') {
+            return $this->wrap($cwd, [
+                'Usage: killport <port|url>',
+                '  killport 4201',
+                '  killport http://localhost:4201/',
+                '  kp 5173                    — alias singkat',
+            ]);
+        }
+
+        $port = $this->parsePortArg($raw);
+        if ($port === null) {
+            return $this->wrap($cwd, ["killport: port tidak valid — {$raw}"]);
+        }
+
+        $pids = $this->findPidsOnPort($port);
+        if ($pids === []) {
+            return $this->wrap($cwd, ["killport: tidak ada proses LISTENING di port {$port}"]);
+        }
+
+        $lines = ['Port ' . $port . ' — PID: ' . implode(', ', $pids)];
+        $killed = 0;
+
+        foreach ($pids as $pid) {
+            $lines[] = $this->killPidTree($pid);
+            if (str_starts_with($lines[array_key_last($lines)], '✓')) {
+                $killed++;
+            }
+        }
+
+        if ($killed > 0) {
+            $lines[] = "✓ Port {$port} bebas — {$killed} proses dihentikan";
+        }
+
+        return $this->wrap($cwd, $lines);
+    }
+
+    private function parsePortArg(string $raw): ?int
+    {
+        if (preg_match('/:(\d{1,5})(?:\/|$|\s)/', $raw, $m)) {
+            $port = (int) $m[1];
+            return ($port >= 1 && $port <= 65535) ? $port : null;
+        }
+
+        if (preg_match('/^\d{1,5}$/', $raw)) {
+            $port = (int) $raw;
+            return ($port >= 1 && $port <= 65535) ? $port : null;
+        }
+
+        return null;
+    }
+
+    /** @return int[] */
+    private function findPidsOnPort(int $port): array
+    {
+        $output = [];
+        @exec('netstat -ano 2>NUL', $output);
+
+        $pids = [];
+        $needle = ':' . $port;
+
+        foreach ($output as $line) {
+            if (stripos($line, 'LISTENING') === false) {
+                continue;
+            }
+
+            if (!preg_match('/' . preg_quote($needle, '/') . '\s+\S+\s+LISTENING\s+(\d+)/i', $line, $m)) {
+                continue;
+            }
+
+            $pid = (int) $m[1];
+            if ($pid > 0) {
+                $pids[] = $pid;
+            }
+        }
+
+        return array_values(array_unique($pids));
+    }
+
+    private function killPidTree(int $pid): string
+    {
+        if ($pid <= 0) {
+            return '✗ PID tidak valid';
+        }
+
+        $output = [];
+        $code = 1;
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            @exec('taskkill /PID ' . $pid . ' /F /T 2>&1', $output, $code);
+        } else {
+            @exec('kill -9 ' . $pid . ' 2>&1', $output, $code);
+        }
+
+        if ($code === 0) {
+            return "✓ PID {$pid} dihentikan (+ child process)";
+        }
+
+        $msg = trim(implode(' ', $output));
+        return "✗ PID {$pid}" . ($msg !== '' ? ": {$msg}" : ': gagal dihentikan');
     }
 
     private function cmdCd(string $cwd, ?string $target, ?string $prevCwd): array
@@ -576,9 +683,23 @@ class ShellHandler
         return $branch !== '' ? $branch : 'main';
     }
 
+    private function isBuiltinCommand(string $cmd): bool
+    {
+        static $builtins = [
+            'cd', 'pwd', 'ls', 'dir', 'cat', 'type', 'head', 'tail', 'touch',
+            'mkdir', 'md', 'rm', 'del', 'cp', 'copy', 'mv', 'move', 'echo',
+            'find', 'tree', 'wc', 'grep', 'clear', 'cls', 'killport', 'kp',
+        ];
+
+        return in_array(strtolower($cmd), $builtins, true);
+    }
+
     private function isAllowedShell(string $cmd): bool
     {
         $cmd = strtolower($cmd);
+        if ($this->isBuiltinCommand($cmd)) {
+            return false;
+        }
         if (in_array($cmd, $this->blockedShell, true)) {
             return false;
         }
@@ -607,6 +728,25 @@ class ShellHandler
 
         $tokens = $this->parseArgs($command);
         $cmd = strtolower($tokens[0] ?? '');
+
+        if ($this->isBuiltinCommand($cmd)) {
+            $result = $this->execute($command, $cwd, $prevCwd);
+            if (!empty($result['clear'])) {
+                $emit(['type' => 'clear']);
+            }
+            foreach ($result['output'] ?? [] as $line) {
+                $emit(['type' => 'line', 'text' => $line]);
+            }
+            $emit([
+                'type' => 'done',
+                'ok' => $result['ok'] ?? true,
+                'cwd' => $result['cwd'] ?? $this->normalizePath($cwd),
+                'prevCwd' => $result['prevCwd'] ?? null,
+                'gitBranch' => $result['gitBranch'] ?? null,
+                'clear' => $result['clear'] ?? false,
+            ]);
+            return;
+        }
 
         if ($this->isAllowedShell($cmd)) {
             $finalCwd = $this->runShellStream($this->enhanceStreamCommand($command), $cwd, $emit);

@@ -1,0 +1,131 @@
+.terminal-workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: #181818;
+  border-left: 1px solid #3c3c3c;
+  border-right: 1px solid #3c3c3c;
+  padding: 0 6px;
+  min-height: 34px;
+}
+
+.tab-list {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab-list::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 6px 6px 0 0;
+  margin-top: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+}
+
+.tab-item--active {
+  background: var(--bg, #0c0c0c);
+  border-color: #3c3c3c;
+}
+
+.tab-select {
+  border: none;
+  background: transparent;
+  color: #888;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 6px 8px 6px 12px;
+  cursor: pointer;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-item--active .tab-select {
+  color: var(--term-text, #ccc);
+  font-weight: 600;
+}
+
+.tab-close {
+  border: none;
+  background: transparent;
+  color: #666;
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 8px 4px 2px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.tab-close:hover {
+  color: #ff5f57;
+  background: rgba(255, 95, 87, 0.12);
+}
+
+.tab-add {
+  flex-shrink: 0;
+  align-self: center;
+  width: 26px;
+  height: 26px;
+  margin-left: 4px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #aaa;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
+
+.tab-add:hover:not(:disabled) {
+  border-color: var(--tw-path-bg, #00b4d8);
+  color: var(--tw-path-bg, #00b4d8);
+}
+
+.tab-add:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.tab-panels {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.tab-panel {
+  flex: 1;
+  min-height: 0;
+  display: none;
+  flex-direction: column;
+}
+
+.tab-panel--active {
+  display: flex;
+}
+
+.tab-panel .terminal {
+  border-radius: 0 0 10px 10px;
+}

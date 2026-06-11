@@ -3,6 +3,7 @@ import TerminalPrompt from './TerminalPrompt'
 import {
   createRealState,
   executeCommandAsync,
+  getDisplayPath,
   INITIAL_STATE,
 } from '../utils/commands'
 import { initShell, fetchDirListing, isStreamCommand } from '../utils/shellApi'
@@ -14,12 +15,13 @@ import {
   parseCdInput,
 } from '../utils/pathComplete'
 import { loadCommandHistory, pushCommandHistory } from '../utils/historyStorage'
-import { extractPreviewUrl, renderLinkified } from '../utils/linkify'
+import { extractPortFromUrl, extractPreviewUrl, renderLinkified } from '../utils/linkify'
+import { parsePruneCommand, pruneLineRange, pruneStreamLines } from '../utils/pruneLines'
 import { formatElapsed, getRunningBarText, isLongRunningCommand, isServerReadyLine, parseWebpackPhase } from '../utils/streamHelpers'
 import CdAutocomplete from './CdAutocomplete'
 import './Terminal.css'
 
-export default function Terminal() {
+export default function Terminal({ isActive = true, onTitleChange }) {
   const [lines, setLines] = useState([
     { type: 'output', text: '@tahirwiyan terminal v1.0' },
     { type: 'output', text: 'Menghubungkan ke Laragon...\n' },
@@ -33,6 +35,9 @@ export default function Terminal() {
   const [clockTick, setClockTick] = useState(0)
   const [followOutput, setFollowOutput] = useState(true)
   const [previewUrl, setPreviewUrl] = useState(null)
+  const [pruneOpen, setPruneOpen] = useState(false)
+  const [pruneFrom, setPruneFrom] = useState('1')
+  const [pruneTo, setPruneTo] = useState('')
   const [cdOpen, setCdOpen] = useState(false)
   const [cdLoading, setCdLoading] = useState(false)
   const [cdEntries, setCdEntries] = useState([])
@@ -48,6 +53,28 @@ export default function Terminal() {
   const streamLoadingIdRef = useRef(null)
   const streamFinishRef = useRef(null)
   const touchStartYRef = useRef(0)
+
+  const applyPrune = useCallback((from, to) => {
+    setLines((prev) => {
+      const { lines: next, message } = pruneLineRange(prev, from, to)
+      return [...next, { type: 'output', text: message }, { type: 'spacer' }]
+    })
+  }, [])
+
+  const handlePruneSubmit = useCallback(() => {
+    const from = Number.parseInt(pruneFrom, 10)
+    const to = Number.parseInt(pruneTo, 10)
+    if (!Number.isFinite(from) || !Number.isFinite(to) || from < 1 || to < from) {
+      setLines((prev) => [
+        ...prev,
+        { type: 'output', text: '✗ Rentang tidak valid. Contoh: dari 1 sampai 500' },
+        { type: 'spacer' },
+      ])
+      return
+    }
+    applyPrune(from, to)
+    setPruneOpen(false)
+  }, [applyPrune, pruneFrom, pruneTo])
 
   const clearStreamPump = useCallback(() => {
     if (streamTimerRef.current) {
@@ -434,11 +461,61 @@ export default function Terminal() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!onTitleChange || !state.realMode) return
+    const label = getDisplayPath(state.cwd, state.home)
+    onTitleChange(label.length > 18 ? `…${label.slice(-17)}` : label)
+  }, [state.cwd, state.home, state.realMode, onTitleChange])
+
+  useEffect(() => {
+    if (isActive) focusInput()
+  }, [isActive, focusInput])
+
   const runCommand = useCallback(
     async (cmd) => {
       const trimmed = cmd.trim()
       if (!trimmed) {
         setLines((prev) => [...prev, { type: 'prompt', command: '' }])
+        return
+      }
+
+      if (/^lines$/i.test(trimmed)) {
+        setLines((prev) => [
+          ...prev,
+          { type: 'prompt', command: trimmed },
+          {
+            type: 'output',
+            text: `Total baris output: ${prev.length} (nomor 1 = paling atas)`,
+          },
+          { type: 'spacer' },
+        ])
+        return
+      }
+
+      if (/^(killport|kp)\b/i.test(trimmed) && !state.realMode) {
+        setLines((prev) => [
+          ...prev,
+          { type: 'prompt', command: trimmed },
+          {
+            type: 'output',
+            text: 'killport hanya tersedia di mode REAL — nyalakan Laragon lalu refresh.',
+          },
+          { type: 'spacer' },
+        ])
+        return
+      }
+
+      const pruneArgs = parsePruneCommand(trimmed)
+      if (pruneArgs) {
+        setLines((prev) => {
+          const promptLine = { type: 'prompt', command: trimmed }
+          if (pruneArgs.mode === 'stream') {
+            const { lines: next, message } = pruneStreamLines(prev)
+            return [...next, promptLine, { type: 'output', text: message }, { type: 'spacer' }]
+          }
+          const { lines: next, message } = pruneLineRange(prev, pruneArgs.from, pruneArgs.to)
+          return [...next, promptLine, { type: 'output', text: message }, { type: 'spacer' }]
+        })
         return
       }
 
@@ -459,7 +536,9 @@ export default function Terminal() {
       let streamFailed = false
 
       let lastPreviewUrl = null
-      setPreviewUrl(null)
+      if (isLongRunningCommand(trimmed)) {
+        setPreviewUrl(null)
+      }
 
       const tryDetach = (reason, url = null) => {
         if (detached) return
@@ -595,6 +674,14 @@ export default function Terminal() {
         })
 
         setState({ ...result.newState, history: newHistory, historyIndex: -1 })
+
+        if (
+          /^(killport|kp)\b/i.test(trimmed) &&
+          result.output?.some((l) => /Port \d+ bebas|dihentikan/i.test(l))
+        ) {
+          setPreviewUrl(null)
+          setLines((prev) => prev.filter((line) => line.type !== 'running'))
+        }
       } catch (err) {
         if (detachTimer) window.clearTimeout(detachTimer)
         if (abortController?.signal.aborted) {
@@ -716,9 +803,11 @@ export default function Terminal() {
     realMode: state.realMode,
   }
 
+  const serverPort = extractPortFromUrl(previewUrl)
+
   return (
     <div
-      className="terminal"
+      className={`terminal${previewUrl ? ' terminal--has-server' : ''}`}
       ref={terminalRef}
       onScroll={handleTerminalScroll}
       onWheel={handleTerminalWheel}
@@ -733,10 +822,71 @@ export default function Terminal() {
         if (e.button !== 0) return
         if (e.target.closest('.input-area')) return
         if (e.target.closest('.scroll-bottom-btn')) return
+        if (e.target.closest('.terminal-toolbar')) return
+        if (e.target.closest('.server-link-badge')) return
+        if (e.target.closest('.server-link-kill')) return
         if (e.target.closest('.terminal-scrollbar')) return
         focusInput()
       }}
     >
+      <div className="terminal-toolbar">
+        <button
+          type="button"
+          className="toolbar-btn"
+          onClick={(e) => {
+            e.stopPropagation()
+            setPruneOpen((v) => !v)
+            if (!pruneTo) setPruneTo(String(lines.length))
+          }}
+          title="Hapus baris log"
+        >
+          🗑 Hapus baris
+        </button>
+        {pruneOpen && (
+          <div className="prune-panel" onClick={(e) => e.stopPropagation()}>
+            <span className="prune-panel-label">
+              Baris 1–{lines.length}
+            </span>
+            <label className="prune-field">
+              Dari
+              <input
+                type="number"
+                min={1}
+                max={lines.length}
+                value={pruneFrom}
+                onChange={(e) => setPruneFrom(e.target.value)}
+              />
+            </label>
+            <label className="prune-field">
+              Sampai
+              <input
+                type="number"
+                min={1}
+                max={lines.length}
+                value={pruneTo}
+                onChange={(e) => setPruneTo(e.target.value)}
+              />
+            </label>
+            <button type="button" className="prune-apply" onClick={handlePruneSubmit}>
+              Hapus
+            </button>
+            <button
+              type="button"
+              className="prune-stream"
+              onClick={() => {
+                setLines((prev) => {
+                  const { lines: next, message } = pruneStreamLines(prev)
+                  return [...next, { type: 'output', text: message }, { type: 'spacer' }]
+                })
+                setPruneOpen(false)
+              }}
+            >
+              Log npm
+            </button>
+          </div>
+        )}
+      </div>
+
       {!followOutput && (
         <button
           type="button"
@@ -749,19 +899,20 @@ export default function Terminal() {
       )}
       <div className="terminal-body">
         {lines.map((line, i) => {
+          const lineNo = i + 1
           if (line.type === 'prompt') {
             return (
-              <div key={i} className="line line-prompt">
+              <div key={i} className="line line-prompt" data-line={lineNo}>
                 <TerminalPrompt {...promptProps} />
                 <span className="typed-command">{line.command}</span>
               </div>
             )
           }
-          if (line.type === 'spacer') return <div key={i} className="line-spacer" />
+          if (line.type === 'spacer') return <div key={i} className="line-spacer" data-line={lineNo} />
           if (line.type === 'loading') {
             const elapsed = line.startedAt ? formatElapsed(Date.now() - line.startedAt) : '00:00'
             return (
-              <div key={line.id ?? i} className="line line-loading">
+              <div key={line.id ?? i} className="line line-loading" data-line={lineNo}>
                 <span className="loading-spinner" />
                 <span className="loading-text">{line.text}</span>
                 <span className="loading-timer">{elapsed}</span>
@@ -772,25 +923,12 @@ export default function Terminal() {
             const elapsed = line.startedAt ? formatElapsed(Date.now() - line.startedAt) : '00:00'
             const elapsedMs = line.startedAt ? Date.now() - line.startedAt : 0
             const statusText = getRunningBarText(elapsedMs, line.command || '', line.phase)
-            const runUrl = line.previewUrl || previewUrl
             return (
-              <div key={line.id ?? i} className="line line-running">
+              <div key={line.id ?? i} className="line line-running" data-line={lineNo}>
                 <span className="running-dot" />
                 <span className="running-text">
                   {statusText}
                   {line.command && <span className="running-cmd"> · {line.command}</span>}
-                  {runUrl && (
-                    <a
-                      href={runUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="term-link term-link--preview"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {' '}
-                      · Buka {runUrl}
-                    </a>
-                  )}
                 </span>
                 <span className="loading-timer">{elapsed}</span>
               </div>
@@ -799,6 +937,7 @@ export default function Terminal() {
           return (
             <div
               key={i}
+              data-line={lineNo}
               className={`line line-output${line.stream ? ' line-output--stream' : ''}${/\[terminal\] ▶ Preview:/.test(line.text) ? ' line-output--preview' : ''}`}
             >
               {renderLinkified(line.text)}
@@ -827,7 +966,7 @@ export default function Terminal() {
               onKeyDown={handleKeyDown}
               onClick={(e) => e.stopPropagation()}
               disabled={busy}
-              autoFocus
+              autoFocus={isActive}
               spellCheck={false}
               autoComplete="off"
               autoCorrect="off"
@@ -837,6 +976,31 @@ export default function Terminal() {
           </span>
         </div>
       </div>
+
+      {previewUrl && (
+        <div className="server-link-badge" onClick={(e) => e.stopPropagation()}>
+          <span className="server-link-badge-label">Server lokal</span>
+          <a
+            href={previewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="server-link-badge-url"
+            title="Buka di browser"
+          >
+            {previewUrl}
+          </a>
+          {serverPort && (
+            <button
+              type="button"
+              className="server-link-kill"
+              onClick={() => runCommand(`killport ${serverPort}`)}
+              title={`Hentikan proses di port ${serverPort}`}
+            >
+              Kill :{serverPort}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

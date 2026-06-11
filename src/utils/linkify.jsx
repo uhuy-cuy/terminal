@@ -6,6 +6,14 @@ export function extractPreviewUrl(text) {
   return match ? match[0].replace(/[.,)\]]+$/, '') : null
 }
 
+export function extractPortFromUrl(url) {
+  if (!url) return null
+  const match = String(url).match(/:(\d{1,5})(?:\/|$)/)
+  if (!match) return null
+  const port = Number(match[1])
+  return port >= 1 && port <= 65535 ? port : null
+}
+
 export function renderLinkified(text) {
   if (!text) return text
 
