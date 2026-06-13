@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "generate-icons": "node scripts/generate-icons.mjs",
-    "prebuild": "node scripts/generate-icons.mjs",
+    "prebuild": "node scripts/generate-icons.mjs && node scripts/restore-dev-index.mjs",
     "dev": "vite",
     "build": "vite build",
+    "postbuild": "node scripts/postbuild-deploy.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

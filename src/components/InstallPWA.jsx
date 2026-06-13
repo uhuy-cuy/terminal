@@ -19,6 +19,11 @@ export default function InstallPWA() {
 
     window.addEventListener('beforeinstallprompt', handler)
     window.addEventListener('appinstalled', () => {
+      try {
+        localStorage.setItem('tw-pwa-installed', '1')
+      } catch {
+        /* ignore */
+      }
       setInstalled(true)
       setPrompt(null)
     })
@@ -39,7 +44,7 @@ export default function InstallPWA() {
   return (
     <div className="install-pwa">
       <div className="install-pwa-content">
-        <img src="/icon.svg" alt="" className="install-pwa-icon" />
+        <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" className="install-pwa-icon" />
         <div className="install-pwa-text">
           <strong>Install @tahirwiyan</strong>
           <span>Buka terminal langsung dari home screen</span>

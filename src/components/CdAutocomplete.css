@@ -8,8 +8,8 @@
   max-height: min(280px, 40vh);
   display: flex;
   flex-direction: column;
-  background: var(--chrome-bg, #2d2d2d);
-  border: 1px solid #444;
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
   overflow: hidden;
@@ -32,7 +32,9 @@
   margin: 0;
   padding: 4px;
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
+  min-height: 0;
 }
 
 .cd-autocomplete-empty {

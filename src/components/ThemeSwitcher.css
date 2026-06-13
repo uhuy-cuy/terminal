@@ -85,25 +85,6 @@
     0 12px 40px rgba(0, 0, 0, 0.55),
     0 0 0 1px rgba(0, 0, 0, 0.4);
   z-index: 200;
-  scrollbar-width: thin;
-  scrollbar-color: #3a3a3a transparent;
-}
-
-.theme-switcher-panel::-webkit-scrollbar {
-  width: 5px;
-}
-
-.theme-switcher-panel::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.theme-switcher-panel::-webkit-scrollbar-thumb {
-  background: #3a3a3a;
-  border-radius: 99px;
-}
-
-.theme-switcher-panel::-webkit-scrollbar-thumb:hover {
-  background: #4a4a4a;
 }
 
 .theme-style-tabs {

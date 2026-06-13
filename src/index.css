@@ -60,6 +60,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
+  color-scheme: dark;
 }
 
 input,
@@ -71,4 +72,50 @@ select {
 
 ::selection {
   background: var(--selection-bg);
+}
+
+/* Scrollbar gelap tipis — cd autocomplete, terminal, panel */
+.cd-autocomplete-list,
+.terminal,
+.theme-switcher-panel,
+.prune-panel {
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3a transparent;
+}
+
+.cd-autocomplete-list::-webkit-scrollbar,
+.terminal::-webkit-scrollbar,
+.theme-switcher-panel::-webkit-scrollbar,
+.prune-panel::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.cd-autocomplete-list::-webkit-scrollbar-track,
+.terminal::-webkit-scrollbar-track,
+.theme-switcher-panel::-webkit-scrollbar-track,
+.prune-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cd-autocomplete-list::-webkit-scrollbar-thumb,
+.terminal::-webkit-scrollbar-thumb,
+.theme-switcher-panel::-webkit-scrollbar-thumb,
+.prune-panel::-webkit-scrollbar-thumb {
+  background: #3a3a3a;
+  border-radius: 99px;
+}
+
+.cd-autocomplete-list::-webkit-scrollbar-thumb:hover,
+.terminal::-webkit-scrollbar-thumb:hover,
+.theme-switcher-panel::-webkit-scrollbar-thumb:hover,
+.prune-panel::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.cd-autocomplete-list::-webkit-scrollbar-button,
+.terminal::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }

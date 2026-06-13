@@ -26,7 +26,13 @@ $action = $_GET['action'] ?? ($body['action'] ?? null);
 
 try {
     if ($action === 'init') {
-        echo json_encode($shell->init());
+        $ensureLaragon = !empty($_GET['ensureLaragon']) || !empty($body['ensureLaragon']);
+        echo json_encode($shell->init($ensureLaragon));
+        exit;
+    }
+
+    if ($action === 'start-laragon') {
+        echo json_encode($shell->ensureLaragonStarted());
         exit;
     }
 

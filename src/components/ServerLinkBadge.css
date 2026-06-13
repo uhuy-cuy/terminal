@@ -1,0 +1,50 @@
+.server-link-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid color-mix(in srgb, var(--tw-git-bg, #2ecc71) 50%, transparent);
+  border-radius: 6px;
+  max-width: min(300px, 40vw);
+}
+
+.server-link-badge-url {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--tw-path-bg, #00b4d8);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.server-link-badge-url:hover {
+  text-decoration: underline;
+}
+
+.server-link-kill {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 3px 7px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 95, 87, 0.45);
+  background: rgba(255, 95, 87, 0.1);
+  color: #ff5f57;
+  cursor: pointer;
+}
+
+.server-link-kill:hover {
+  background: rgba(255, 95, 87, 0.22);
+  border-color: #ff5f57;
+}
+
+@media (max-width: 720px) {
+  .server-link-badge-url {
+    max-width: 100px;
+  }
+}

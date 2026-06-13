@@ -7,10 +7,15 @@ import './index.css'
 
 loadSavedTheme()
 
-registerSW({
+const updateSW = registerSW({
   immediate: true,
   onOfflineReady() {
     console.log('@tahirwiyan siap offline')
+  },
+  onNeedRefresh() {
+    window.dispatchEvent(
+      new CustomEvent('tw-app-update', { detail: { applyUpdate: updateSW } }),
+    )
   },
 })
 

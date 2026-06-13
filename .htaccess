@@ -1,0 +1,14 @@
+# Laragon: arahkan /terminal/ ke build production
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /terminal/
+
+  # API PHP — jangan di-rewrite
+  RewriteRule ^api/ - [L]
+
+  # Service worker & manifest
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^(sw\.js|workbox-.*\.js|manifest\.webmanifest)$ - [L]
+</IfModule>

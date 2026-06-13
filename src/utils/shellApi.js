@@ -1,5 +1,6 @@
-const API_URL = '/api/index.php'
-const STREAM_URL = '/api/stream.php'
+const API_ROOT = `${import.meta.env.BASE_URL}api`.replace(/\/{2,}/g, '/')
+const API_URL = `${API_ROOT}/index.php`
+const STREAM_URL = `${API_ROOT}/stream.php`
 
 const FS_COMMANDS = new Set([
   'cd', 'pwd', 'ls', 'dir', 'cat', 'type', 'head', 'tail', 'touch',
@@ -7,7 +8,10 @@ const FS_COMMANDS = new Set([
   'find', 'tree', 'wc', 'grep', 'clear', 'cls',
 ])
 
-const BUILTIN_COMMANDS = new Set(['killport', 'kp'])
+const BUILTIN_COMMANDS = new Set([
+  'killport', 'kp', 'killnode', 'kn', 'ports', 'listen',
+  'running', 'rn', 'dev',
+])
 
 function resolveFirstCommand(command, aliases = {}) {
   const trimmed = command.trim()
@@ -19,12 +23,25 @@ function resolveFirstCommand(command, aliases = {}) {
   return first
 }
 
-export async function initShell() {
+export async function initShell(options = {}) {
   try {
-    const res = await fetch(`${API_URL}?action=init`)
+    const params = new URLSearchParams({ action: 'init' })
+    if (options.ensureLaragon) params.set('ensureLaragon', '1')
+    const res = await fetch(`${API_URL}?${params}`)
     if (!res.ok) return null
     const data = await res.json()
     return data.ok ? data : null
+  } catch {
+    return null
+  }
+}
+
+export async function startLaragon() {
+  try {
+    const res = await fetch(`${API_URL}?action=start-laragon`)
+    if (!res.ok) return null
+    const data = await res.json()
+    return data?.ok ? data : null
   } catch {
     return null
   }
@@ -51,7 +68,7 @@ export async function execShell(command, cwd, prevCwd = null) {
 }
 
 export async function execShellStream(command, cwd, prevCwd = null, handlers = {}) {
-  const { signal, onStart, onStatus, onLine, onClear } = handlers
+  const { signal, onStart, onStatus, onLine, onClear, onMeta } = handlers
 
   let res
   try {
@@ -91,6 +108,11 @@ export async function execShellStream(command, cwd, prevCwd = null, handlers = {
 
       let newlineIndex
       while ((newlineIndex = buffer.indexOf('\n')) >= 0) {
+        if (signal?.aborted) {
+          await reader.cancel().catch(() => {})
+          return { ...finalData, ok: true, cancelled: true }
+        }
+
         const raw = buffer.slice(0, newlineIndex).trim()
         buffer = buffer.slice(newlineIndex + 1)
         if (!raw) continue
@@ -107,6 +129,7 @@ export async function execShellStream(command, cwd, prevCwd = null, handlers = {
         }
 
         if (msg.type === 'start') onStart?.(msg.command)
+        else if (msg.type === 'meta') onMeta?.(msg)
         else if (msg.type === 'status') onStatus?.(msg.text)
         else if (msg.type === 'line') onLine?.(msg.text)
         else if (msg.type === 'clear') onClear?.()
@@ -114,6 +137,11 @@ export async function execShellStream(command, cwd, prevCwd = null, handlers = {
         else if (msg.type === 'done') {
           gotDone = true
           finalData = { ...finalData, ...msg }
+        }
+
+        if (signal?.aborted) {
+          await reader.cancel().catch(() => {})
+          return { ...finalData, ok: true, cancelled: true }
         }
       }
     }
@@ -123,13 +151,17 @@ export async function execShellStream(command, cwd, prevCwd = null, handlers = {
       return { ...finalData, ok: true, cancelled: true }
     }
     if (!gotDone) {
-      onLine?.(`[error] ${err?.message || 'Koneksi stream terputus'}`)
+      onLine?.(
+        '[terminal] Stream terputus (sleep/jaringan) — proses di server tetap jalan jika npm/build',
+      )
+      return { ...finalData, ok: true, disconnected: true }
     }
     throw err
   }
 
   if (!gotDone && !signal?.aborted) {
-    onLine?.('[warning] Stream berakhir tanpa sinyal selesai — proses mungkin masih jalan di server')
+    onLine?.('[terminal] Stream terputus — proses di server mungkin masih jalan (cek log / killport)')
+    return { ...finalData, ok: true, disconnected: true }
   }
 
   return finalData

@@ -109,7 +109,7 @@
 
 .tab-panels {
   flex: 1;
-  min-height: 0;
+  min-height: 240px;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -117,7 +117,7 @@
 
 .tab-panel {
   flex: 1;
-  min-height: 0;
+  min-height: 240px;
   display: none;
   flex-direction: column;
 }

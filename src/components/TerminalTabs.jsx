@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Terminal from './Terminal'
 import './TerminalTabs.css'
 
@@ -9,10 +9,32 @@ function makeTab() {
   return { id: `tab-${n}-${Date.now()}`, title: `Terminal ${n}` }
 }
 
-export default function TerminalTabs() {
+export default function TerminalTabs({ onServerUrlChange, killPortRef, onTerminalHasLogsChange }) {
   const [initialTab] = useState(() => makeTab())
   const [tabs, setTabs] = useState(() => [initialTab])
   const [activeId, setActiveId] = useState(initialTab.id)
+  const [serverUrls, setServerUrls] = useState({})
+  const runCommandFns = useRef({})
+  const tabHasLogsRef = useRef({})
+
+  const updateTabHasLogs = useCallback(
+    (tabId, hasLogs) => {
+      tabHasLogsRef.current[tabId] = hasLogs
+      onTerminalHasLogsChange?.(Object.values(tabHasLogsRef.current).some(Boolean))
+    },
+    [onTerminalHasLogsChange],
+  )
+
+  useEffect(() => {
+    onServerUrlChange?.(serverUrls[activeId] ?? null)
+  }, [activeId, serverUrls, onServerUrlChange])
+
+  useEffect(() => {
+    if (!killPortRef) return
+    killPortRef.current = (cmd) => {
+      runCommandFns.current[activeId]?.(cmd)
+    }
+  }, [activeId, killPortRef])
 
   const addTab = useCallback(() => {
     setTabs((prev) => {
@@ -33,10 +55,12 @@ export default function TerminalTabs() {
           const fallback = next[Math.min(idx, next.length - 1)]
           setActiveId(fallback?.id ?? next[0]?.id)
         }
+        delete tabHasLogsRef.current[id]
+        onTerminalHasLogsChange?.(Object.values(tabHasLogsRef.current).some(Boolean))
         return next
       })
     },
-    [activeId],
+    [activeId, onTerminalHasLogsChange],
   )
 
   const updateTabTitle = useCallback((id, title) => {
@@ -95,11 +119,19 @@ export default function TerminalTabs() {
             key={tab.id}
             className={`tab-panel${tab.id === activeId ? ' tab-panel--active' : ''}`}
             role="tabpanel"
-            hidden={tab.id !== activeId}
+            aria-hidden={tab.id !== activeId}
           >
             <Terminal
               isActive={tab.id === activeId}
+              autoStartDev={tab.id === initialTab.id}
               onTitleChange={(title) => updateTabTitle(tab.id, title)}
+              onPreviewUrlChange={(url) =>
+                setServerUrls((prev) => ({ ...prev, [tab.id]: url }))
+              }
+              onRegisterRunCommand={(fn) => {
+                runCommandFns.current[tab.id] = fn
+              }}
+              onHasLogsChange={(hasLogs) => updateTabHasLogs(tab.id, hasLogs)}
             />
           </div>
         ))}
